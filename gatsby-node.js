@@ -6,17 +6,16 @@ exports.pluginOptionsSchema = ({Joi}) =>
 {
 	return Joi.object({
 		import:              Joi.array().items(Joi.string())
-			                     .required()
-			                     .default(['./src/resources/'])
+			                     .default([])
 			                     .description(`A list of files and folders, which will be included in the imports/exports generation.`),
 		modify:              Joi.array().items(Joi.string())
-			                     .required()
-			                     .default(['./src/resources/', './src/pages/'])
+			                     .default([])
 			                     .description(`A list of files and folders, which will be updated to automatically import everything that has been exported.`),
 		filter:              Joi.function().minArity(1)
 			                     .default(null)
 			                     .description(`A function that can be used to filter the files and folders that will be included in the imports/exports generation.`),
 		outputName:          Joi.string()
+			                     .allow(null)
 			                     .default('imports.js')
 			                     .description(`The name of the file that will be generated, this file will contain the import lines.`),
 		previousOutputNames: Joi.array().items(Joi.string())
@@ -172,6 +171,10 @@ function setFileContentIfFirstLineIsDifferent(file, newContent, oldContent = nul
 
 function purgeOutputName(name)
 {
+	if(name === null)
+	{
+		return null;
+	}
 	name = purgePath(name);
 	if(!name.endsWith('.js'))
 	{
@@ -224,7 +227,7 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 	function purgeImportedFieldsCode(code)
 	{
 		let changed = true;
-		const possibleImportLines = [outputName, ...previousOutputNames].map(path => `./${path}';`);
+		const possibleImportLines = [...((outputName !== null) ? [outputName] : []), ...previousOutputNames].map(path => `./${path}';`);
 		while(changed)
 		{
 			changed = false;
@@ -290,7 +293,7 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 	
 	function importFile(file)
 	{
-		if(isFileOfType(file, pluginOptions['fileExtensionsJs']))
+		if((outputName !== null) && isFileOfType(file, pluginOptions['fileExtensionsJs']))
 		{
 			if(filter(file))
 			{
@@ -299,7 +302,7 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 				fields.forEach(field => exportedFields[field] = true);
 			}
 		}
-		else if(isFileOfType(file, pluginOptions['fileExtensionsOther']))
+		else if((outputName !== null) && isFileOfType(file, pluginOptions['fileExtensionsOther']))
 		{
 			if(filter(file))
 			{
@@ -330,6 +333,12 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 			const code = fs.readFileSync(file, 'utf8');
 			const purgedCode = purgeImportedFieldsCode(code);
 			
+			if(outputName === null)
+			{
+				setFileContentIfFirstLineIsDifferent(file, purgedCode, code);
+				return;
+			}
+			
 			const fields = getExportedFields(purgedCode, true);
 			const levelsDeep = file.split('/').length - 2;
 			const importedFieldsCode = `import {${Object.keys(exportedFields).filter(value => !fields.includes(value)).join(', ')}} from './${'../'.repeat(levelsDeep)}${outputName}';\n`;
@@ -341,6 +350,9 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 	
 	
 	pluginOptions['import']?.forEach(path => getAllFiles(purgePath(path)).sort(compareFileOrder).forEach(importFile));
-	setFileContentIfDifferent('./' + outputName, `${importsCode}\nexport {${Object.keys(exportedFields).join(', ')}};\n`);
+	if(outputName !== null)
+	{
+		setFileContentIfDifferent('./' + outputName, `${importsCode}\nexport {${Object.keys(exportedFields).join(', ')}};\n`);
+	}
 	pluginOptions['modify']?.forEach(path => getAllFiles(purgePath(path)).sort(compareFileOrder).forEach(modifyFile));
 };
