@@ -1,0 +1,30 @@
+name: on push to master
+
+on:
+  push:
+    branches: [ master ]
+
+concurrency:
+  group: ${{ github.event_name }}
+
+jobs:
+  deploy:
+    name: "Increase version and deploy"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          registry-url: 'https://registry.npmjs.org'
+      #- run: npm ci
+      - run: npm test
+      - run: git config --global user.name "github-actions[bot]"
+      - run: git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      - run: npm version patch -m "Upgrade to %s [skip ci]"
+      - run: git push && git push --tags
+      - run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
