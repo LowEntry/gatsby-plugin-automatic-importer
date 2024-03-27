@@ -1,6 +1,7 @@
 {
   "name": "gatsby-plugin-automatic-importer",
   "version": "1.2.1",
+  "private": false,
   "description": "Automatically generates and manages import statements.",
   "author": "Low Entry",
   "license": "MIT",
