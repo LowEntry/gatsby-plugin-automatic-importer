@@ -22,10 +22,10 @@
     "directories",
     "folders"
   ],
-  "homepage": "https://github.com/patrickvane/gatsby-plugin-automatic-importer",
+  "homepage": "https://github.com/LowEntry/gatsby-plugin-automatic-importer",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/patrickvane/gatsby-plugin-automatic-importer.git"
+    "url": "git+https://github.com/LowEntry/gatsby-plugin-automatic-importer.git"
   },
   "scripts": {
     "test": "node --check index.js"
