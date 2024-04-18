@@ -120,11 +120,20 @@ function stringIncludesAny(string, substrings)
 	return includes;
 }
 
-function getFirstLine(code)
+function getFirstCodeLine(code)
 {
-	code = code.trimStart();
-	const firstNewline = code.indexOf('\n');
-	return ((firstNewline >= 0) ? code.substring(0, firstNewline) : code).trim();
+	const firstLine = code.indexOf(';');
+	return ((firstLine >= 0) ? code.substring(0, firstLine) : code).trim();
+}
+
+const regexStartsWithImport = /^\s*import\s*{/i;
+function getFirstImportStatement(code)
+{
+	if(!regexStartsWithImport.test(code))
+	{
+		return '';
+	}
+	return code.substring(0, code.indexOf(';') + 1);
 }
 
 
@@ -148,7 +157,7 @@ function setFileContentIfDifferent(file, newContent, oldContent = null)
 	}
 }
 
-function setFileContentIfFirstLineIsDifferent(file, newContent, oldContent = null)
+function setFileContentIfFirstCodeLineIsDifferent(file, newContent, oldContent = null)
 {
 	if(oldContent === null)
 	{
@@ -162,7 +171,7 @@ function setFileContentIfFirstLineIsDifferent(file, newContent, oldContent = nul
 		}
 	}
 	
-	if(getFirstLine(oldContent) !== getFirstLine(newContent))
+	if(getFirstCodeLine(oldContent) !== getFirstCodeLine(newContent))
 	{
 		fs.writeFileSync(file, newContent);
 	}
@@ -189,6 +198,7 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 {
 	const outputName = purgeOutputName(pluginOptions['outputName']);
 	const previousOutputNames = (pluginOptions['previousOutputNames']).map(purgeOutputName);
+	const possibleImportLines = [...((outputName !== null) ? [outputName] : []), ...previousOutputNames].map(path => `./${path}';`);
 	
 	
 	function getExportedFields(code, codeIsPurged = false)
@@ -224,26 +234,30 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 		}
 	}
 	
+	function containsOurImportStatement(code)
+	{
+		return stringIncludesAny(code, possibleImportLines);
+	}
+	
 	function purgeImportedFieldsCode(code)
 	{
 		let changed = true;
-		const possibleImportLines = [...((outputName !== null) ? [outputName] : []), ...previousOutputNames].map(path => `./${path}';`);
 		while(changed)
 		{
 			changed = false;
 			
 			const newCode = code.trimStart();
-			const firstLine = getFirstLine(newCode);
+			const firstImportStatement = getFirstImportStatement(newCode);
 			
-			if(stringIncludesAny(firstLine, possibleImportLines))
+			if(containsOurImportStatement(firstImportStatement))
 			{
-				const firstNewline = newCode.indexOf('\n');
-				code = (firstNewline < 0) ? '' : newCode.substring(firstNewline + 1);
+				const importStatementEnd = newCode.indexOf('\n', firstImportStatement.length);
+				code = (importStatementEnd < 0) ? '' : newCode.substring(importStatementEnd + 1);
 				changed = true;
 				continue;
 			}
 			
-			if(firstLine.startsWith('<<<<<<< HEAD'))
+			if(newCode.startsWith('<<<<<<< HEAD'))
 			{
 				const headStartA = newCode.indexOf('\n') + 1;
 				if(headStartA >= 1)
@@ -261,7 +275,7 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 							{
 								const headB = newCode.substring(headStartB, headEndB).trim();
 								
-								if(!headA.includes('\n') && !headB.includes('\n') && stringIncludesAny(headA, possibleImportLines) && stringIncludesAny(headB, possibleImportLines))
+								if(containsOurImportStatement(headA) && containsOurImportStatement(headB))
 								{
 									const headEnd = newCode.indexOf('\n', headEndB) + 1;
 									code = newCode.substring(headEnd);
@@ -326,6 +340,7 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 		}
 	}
 	
+	const regexImportReplacer = /^(\s*import\s*{\s*)[^}]*([\S,]\s*}\s*from\s*['"]).*(['"]\s*;[\s\S]*)/i;
 	function modifyFile(file)
 	{
 		if(isFileOfType(file, pluginOptions['fileExtensionsJs']))
@@ -335,16 +350,31 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 			
 			if(outputName === null)
 			{
-				setFileContentIfFirstLineIsDifferent(file, purgedCode, code);
+				setFileContentIfFirstCodeLineIsDifferent(file, purgedCode, code);
 				return;
 			}
 			
 			const fields = getExportedFields(purgedCode, true);
 			const levelsDeep = file.split('/').length - 2;
-			const importedFieldsCode = `import {${Object.keys(exportedFields).filter(value => !fields.includes(value)).join(', ')}} from './${'../'.repeat(levelsDeep)}${outputName}';\n`;
+			const importLineFields = Object.keys(exportedFields).filter(value => !fields.includes(value)).join(', ');
+			const importLineFrom = './' + '../'.repeat(levelsDeep) + outputName;
+			let newImportLine = `import {${importLineFields}} from '${importLineFrom}';`;
 			
-			const newCode = importedFieldsCode + purgedCode;
-			setFileContentIfFirstLineIsDifferent(file, newCode, code);
+			const firstImportStatement = getFirstImportStatement(code);
+			if(firstImportStatement && containsOurImportStatement(firstImportStatement) && regexImportReplacer.test(firstImportStatement))
+			{
+				newImportLine = firstImportStatement.replace(regexImportReplacer, (match, p1, p2, p3) =>
+				{
+					if(!p2.startsWith(','))
+					{
+						p2 = p2.substring(1);
+					}
+					return p1 + importLineFields + p2 + importLineFrom + p3;
+				});
+			}
+			
+			const newCode = newImportLine + '\n' + purgedCode;
+			setFileContentIfFirstCodeLineIsDifferent(file, newCode, code);
 		}
 	}
 	
