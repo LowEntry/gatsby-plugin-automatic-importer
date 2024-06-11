@@ -42,10 +42,10 @@ Notice that in this example, `App` is not imported, as that's defined in this fi
 
 ## Usage
 
-Add the plugin to your `gatsby-config.js` file:
+Add the plugin to your `gatsby-config.mjs` file:
 
 ```javascript
-module.exports = {
+const config = {
   // ...
   plugins:[
     // ...
@@ -63,6 +63,7 @@ module.exports = {
     },
   ],
 };
+export default config;
 ```
 
 - the `import` array is for files (and folders) which will be added to your imports file.
@@ -109,7 +110,7 @@ The options are:
 ### Example:
 
 ```javascript
-module.exports = {
+const config = {
   // ...
   plugins:[
     // ...
@@ -186,6 +187,7 @@ module.exports = {
     },
   ],
 };
+export default config;
 ```
 
 
