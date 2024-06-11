@@ -1,8 +1,8 @@
-const fs = require('fs');
-const babel = require('@babel/core');
+import fs from 'fs';
+import babel from '@babel/core';
 
 
-exports.pluginOptionsSchema = ({Joi}) =>
+export const pluginOptionsSchema = ({Joi}) =>
 {
 	return Joi.object({
 		import:              Joi.array().items(Joi.string())
@@ -194,7 +194,7 @@ function purgeOutputName(name)
 }
 
 
-exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOptions)
+export const onPreInit = ({reporter}, pluginOptions) =>
 {
 	const outputName = purgeOutputName(pluginOptions['outputName']);
 	const previousOutputNames = (pluginOptions['previousOutputNames']).map(purgeOutputName);
@@ -386,3 +386,4 @@ exports.onPreInit = exports.onPreExtractQueries = function({reporter}, pluginOpt
 	}
 	pluginOptions['modify']?.forEach(path => getAllFiles(purgePath(path)).sort(compareFileOrder).forEach(modifyFile));
 };
+export const onPreExtractQueries = onPreInit;
