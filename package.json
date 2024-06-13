@@ -29,7 +29,7 @@
     "url": "git+https://github.com/LowEntry/gatsby-plugin-automatic-importer.git"
   },
   "scripts": {
-    "test": "node --check index.js"
+    "test": "node --check gatsby-node.mjs"
   },
   "dependencies": {
     "@babel/core": "^7",

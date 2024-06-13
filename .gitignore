@@ -7,4 +7,3 @@ bin/
 build/
 dist/
 coverage/
-package-lock.json
