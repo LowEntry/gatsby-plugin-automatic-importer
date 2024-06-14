@@ -3,6 +3,7 @@
   "version": "1.3.3",
   "private": false,
   "type": "module",
+  "main": "./index.js",
   "description": "Automatically generates and manages import statements.",
   "author": "Low Entry",
   "license": "MIT",
