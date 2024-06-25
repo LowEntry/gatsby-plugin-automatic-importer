@@ -49,18 +49,28 @@ function purgePath(path)
 
 function getAllFiles(path, allFilesList = [])
 {
-	const stats = fs.statSync(path);
-	if(stats.isDirectory())
+	try
 	{
-		const files = fs.readdirSync(path);
-		files.forEach(file =>
+		if(fs.existsSync(path))
 		{
-			getAllFiles(path + '/' + file, allFilesList);
-		});
+			const stats = fs.statSync(path);
+			if(stats.isDirectory())
+			{
+				const files = fs.readdirSync(path);
+				files.forEach(file =>
+				{
+					getAllFiles(path + '/' + file, allFilesList);
+				});
+			}
+			else if(stats.isFile())
+			{
+				allFilesList.push(path);
+			}
+		}
 	}
-	else if(stats.isFile())
+	catch(e)
 	{
-		allFilesList.push(path);
+		console.error(e);
 	}
 	return allFilesList;
 }
