@@ -51,7 +51,11 @@ function getAllFiles(path, allFilesList = [])
 {
 	try
 	{
-		if(fs.existsSync(path))
+		if(!fs.existsSync(path))
+		{
+			console.warn('[gatsby-plugin-automatic-importer] Path does not exist:', path);
+		}
+		else
 		{
 			const stats = fs.statSync(path);
 			if(stats.isDirectory())
